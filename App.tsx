@@ -40,6 +40,40 @@ const App: React.FC = () => {
   const transcriptionEndRef = useRef<HTMLDivElement>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
 
+  // Check permissions on mount - bypass setup if already granted
+  useEffect(() => {
+    const checkAndBypassPermissions = async () => {
+      try {
+        // Check if microphone permission is already granted
+        const permissionStatus = await navigator.permissions?.query?.({ name: 'microphone' });
+        
+        if (permissionStatus?.state === 'granted') {
+          // Auto-bypass setup if permissions already granted
+          setIsSetup(true);
+          return;
+        }
+
+        // Fallback: Try to access microphone to see if it works
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          stream.getTracks().forEach(track => track.stop());
+          // If we got here, permissions must be granted
+          setIsSetup(true);
+          return;
+        } catch (e) {
+          // getUserMedia failed or permissions not granted yet
+          console.log("Permissions not yet granted, showing setup screen");
+        }
+      } catch (err) {
+        console.log("Could not check permissions automatically", err);
+      }
+      // If anything fails or denied, show setup screen
+      setIsSetup(false);
+    };
+
+    checkAndBypassPermissions();
+  }, []);
+
   const addLog = useCallback((entry: Omit<LogEntry, 'id' | 'timestamp'>) => {
     setLogs(prev => [...prev, { ...entry, id: Math.random().toString(), timestamp: new Date() }]);
   }, []);

@@ -6,6 +6,31 @@ import { LogEntry } from '../types';
  * In a real production app, these would call Capacitor.Plugins.
  */
 export const androidBridge = {
+  /**
+   * Check if microphone permission is currently granted
+   */
+  checkMicrophonePermission: async (): Promise<boolean> => {
+    try {
+      // Method 1: Use Permissions API if available
+      const permissionStatus = await navigator.permissions?.query?.({ name: 'microphone' });
+      if (permissionStatus?.state === 'granted') {
+        return true;
+      }
+      
+      // Method 2: Try accessing microphone directly
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(track => track.stop());
+        return true;
+      } catch (e) {
+        return false;
+      }
+    } catch (err) {
+      console.error("Error checking microphone permission:", err);
+      return false;
+    }
+  },
+
   requestPermissions: async (): Promise<boolean> => {
     // Mocking permission requests
     console.log("Requesting Android permissions...");
