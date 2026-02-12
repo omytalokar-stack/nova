@@ -28,10 +28,16 @@ jobs:
     - name: Install dependencies
       run: npm install
 
+    - name: Ensure Capacitor CLI and core are installed
+      run: npm install @capacitor/cli @capacitor/core --save
+
+    - name: Verify Capacitor installation
+      run: npx cap --version
+
     - name: Build web assets
       run: npm run build
 
-    - name: Sync Capacitor
+    - name: Sync Capacitor with Android
       run: npx cap sync android
 
     - name: Make gradlew executable
