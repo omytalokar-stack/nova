@@ -26,13 +26,10 @@ jobs:
         cache: gradle
 
     - name: Install dependencies
-      run: npm install
+      run: npm install --legacy-peer-deps
 
-    - name: Ensure Capacitor CLI and core are installed
-      run: npm install @capacitor/cli @capacitor/core --save
-
-    - name: Verify Capacitor installation
-      run: npx cap --version
+    - name: Install Capacitor Android, Core and CLI
+      run: npm install @capacitor/android @capacitor/core @capacitor/cli --legacy-peer-deps
 
     - name: Build web assets
       run: npm run build
@@ -43,10 +40,10 @@ jobs:
     - name: Make gradlew executable
       run: chmod +x ./android/gradlew
 
-    - name: Build Android APK
+    - name: Build Android APK (assembleDebug)
       working-directory: android
       run: |
-        ./gradlew build -x test \
+        ./gradlew assembleDebug \
           -Dorg.gradle.jvmargs="-Xmx2048m -XX:+UseG1GC" \
           -Dorg.gradle.configureondemand=true \
           -Dorg.gradle.dependency.verification=off \
