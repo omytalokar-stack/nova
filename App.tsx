@@ -7,6 +7,7 @@ import { MODEL_NAME, SYSTEM_INSTRUCTION, SAMPLE_RATE_IN, SAMPLE_RATE_OUT } from 
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { decodeBase64, decodeAudioData, createPcmBlob } from './services/audioUtils';
 import { androidBridge } from './services/androidBridge';
+import { Permissions, AppState as CapacitorAppState } from '@capacitor/core';
 
 // Audio Worklet Code as a Data URL for low-latency capture
 const WORKLET_CODE = `
@@ -40,39 +41,93 @@ const App: React.FC = () => {
   const transcriptionEndRef = useRef<HTMLDivElement>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
 
+  // Function to check microphone permission using Capacitor API (Android) with fallback to web API
+  const checkMicrophoneGranted = useCallback(async (): Promise<boolean> => {
+    try {
+      // Try Capacitor Permissions first (Android)
+      try {
+        const result = await Permissions.check({ name: 'microphone' });
+        console.log('[Permission Check] Capacitor result:', result);
+        if (result.state === 'granted') {
+          return true;
+        }
+      } catch (err) {
+        console.log('[Permission Check] Capacitor check failed, falling back to Web API:', err);
+      }
+
+      // Fallback: Browser permissions API
+      const permissionStatus = await navigator.permissions?.query?.({ name: 'microphone' });
+      if (permissionStatus?.state === 'granted') {
+        console.log('[Permission Check] Browser permission granted');
+        return true;
+      }
+
+      // Final fallback: Try getUserMedia
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(track => track.stop());
+        console.log('[Permission Check] getUserMedia succeeded');
+        return true;
+      } catch (e) {
+        console.log('[Permission Check] getUserMedia failed:', e);
+        return false;
+      }
+    } catch (err) {
+      console.error('[Permission Check] Unexpected error:', err);
+      return false;
+    }
+  }, []);
+
   // Check permissions on mount - bypass setup if already granted
   useEffect(() => {
     const checkAndBypassPermissions = async () => {
-      try {
-        // Check if microphone permission is already granted
-        const permissionStatus = await navigator.permissions?.query?.({ name: 'microphone' });
-        
-        if (permissionStatus?.state === 'granted') {
-          // Auto-bypass setup if permissions already granted
-          setIsSetup(true);
-          return;
-        }
-
-        // Fallback: Try to access microphone to see if it works
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          stream.getTracks().forEach(track => track.stop());
-          // If we got here, permissions must be granted
-          setIsSetup(true);
-          return;
-        } catch (e) {
-          // getUserMedia failed or permissions not granted yet
-          console.log("Permissions not yet granted, showing setup screen");
-        }
-      } catch (err) {
-        console.log("Could not check permissions automatically", err);
+      const granted = await checkMicrophoneGranted();
+      if (granted) {
+        setIsSetup(true);
+      } else {
+        setIsSetup(false);
       }
-      // If anything fails or denied, show setup screen
-      setIsSetup(false);
     };
 
     checkAndBypassPermissions();
-  }, []);
+  }, [checkMicrophoneGranted]);
+
+  // Listen for app focus (when returning from settings) and re-check permissions
+  useEffect(() => {
+    const handleAppStateChange = (state: any) => {
+      if (state.isActive && !isSetup) {
+        console.log('[App Focus] App returned to focus, re-checking permissions...');
+        checkMicrophoneGranted().then(granted => {
+          if (granted) {
+            setIsSetup(true);
+          }
+        });
+      }
+    };
+
+    // Use Capacitor AppState listener
+    const listener = CapacitorAppState.addListener('appStateChange', handleAppStateChange);
+
+    // Also add fallback window focus listener for web
+    const handleWindowFocus = () => {
+      if (!isSetup) {
+        console.log('[Window Focus] Window regained focus, re-checking permissions...');
+        checkMicrophoneGranted().then(granted => {
+          if (granted) {
+            setIsSetup(true);
+          }
+        });
+      }
+    };
+
+    window.addEventListener('focus', handleWindowFocus);
+
+    // Cleanup listeners
+    return () => {
+      listener?.remove();
+      window.removeEventListener('focus', handleWindowFocus);
+    };
+  }, [isSetup, checkMicrophoneGranted]);
 
   const addLog = useCallback((entry: Omit<LogEntry, 'id' | 'timestamp'>) => {
     setLogs(prev => [...prev, { ...entry, id: Math.random().toString(), timestamp: new Date() }]);
@@ -229,7 +284,7 @@ const App: React.FC = () => {
   };
 
   if (!isSetup) {
-    return <SetupScreen onComplete={handleStartSession} />;
+    return <SetupScreen onComplete={handleStartSession} onAlreadyAllowed={checkMicrophoneGranted} />;
   }
 
   return (

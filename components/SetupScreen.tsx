@@ -4,9 +4,10 @@ import { androidBridge } from '../services/androidBridge';
 
 interface SetupScreenProps {
   onComplete: () => void;
+  onAlreadyAllowed?: () => Promise<boolean>;
 }
 
-const SetupScreen: React.FC<SetupScreenProps> = ({ onComplete }) => {
+const SetupScreen: React.FC<SetupScreenProps> = ({ onComplete, onAlreadyAllowed }) => {
   const [permissions, setPermissions] = useState({
     microphone: false,
     contacts: false,
@@ -103,9 +104,32 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ onComplete }) => {
     }
   };
 
-  const skipPermissions = () => {
-    // Allow users to skip if they've already set permissions
-    onComplete();
+  const skipPermissions = async () => {
+    // If callback provided, check permissions before allowing skip
+    if (onAlreadyAllowed) {
+      setLoading(true);
+      try {
+        const granted = await onAlreadyAllowed();
+        if (granted) {
+          console.log('[ALREADY ALLOWED?] Permission check passed');
+          setTimeout(() => {
+            onComplete();
+          }, 500);
+        } else {
+          console.log('[ALREADY ALLOWED?] Permission check failed');
+          setPermissionsDenied(true);
+          alert("Microphone permission is required. Please check your device settings.");
+        }
+      } catch (err) {
+        console.error('[ALREADY ALLOWED?] Check failed:', err);
+        setPermissionsDenied(true);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // Fallback for web: just proceed
+      onComplete();
+    }
   };
 
   // Loading state - checking existing permissions
@@ -169,9 +193,17 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ onComplete }) => {
 
           <button 
             onClick={skipPermissions}
-            className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl font-semibold text-sm text-gray-400 transition-all transform active:scale-95"
+            disabled={loading}
+            className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl font-semibold text-sm text-gray-400 transition-all transform active:scale-95 disabled:opacity-50"
           >
-            ALREADY ALLOWED? <i className="fas fa-arrow-right text-xs ml-2"></i>
+            {loading ? (
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-4 h-4 border-2 border-gray-400/30 border-t-gray-400 rounded-full animate-spin"></div>
+                <span>CHECKING...</span>
+              </div>
+            ) : (
+              <>ALREADY ALLOWED? <i className="fas fa-arrow-right text-xs ml-2"></i></>
+            )}
           </button>
         </div>
       </div>
