@@ -7,7 +7,7 @@ import { MODEL_NAME, SYSTEM_INSTRUCTION, SAMPLE_RATE_IN, SAMPLE_RATE_OUT } from 
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { decodeBase64, decodeAudioData, createPcmBlob } from './services/audioUtils';
 import { androidBridge } from './services/androidBridge';
-import { Permissions, AppState as CapacitorAppState } from '@capacitor/core';
+import { AppState as CapacitorAppState } from '@capacitor/core';
 
 // Audio Worklet Code as a Data URL for low-latency capture
 const WORKLET_CODE = `
@@ -41,28 +41,17 @@ const App: React.FC = () => {
   const transcriptionEndRef = useRef<HTMLDivElement>(null);
   const logEndRef = useRef<HTMLDivElement>(null);
 
-  // Function to check microphone permission using Capacitor API (Android) with fallback to web API
+  // Function to check microphone permission using web APIs (works on Android via WebView)
   const checkMicrophoneGranted = useCallback(async (): Promise<boolean> => {
     try {
-      // Try Capacitor Permissions first (Android)
-      try {
-        const result = await Permissions.check({ name: 'microphone' });
-        console.log('[Permission Check] Capacitor result:', result);
-        if (result.state === 'granted') {
-          return true;
-        }
-      } catch (err) {
-        console.log('[Permission Check] Capacitor check failed, falling back to Web API:', err);
-      }
-
-      // Fallback: Browser permissions API
+      // Browser permissions API
       const permissionStatus = await navigator.permissions?.query?.({ name: 'microphone' });
       if (permissionStatus?.state === 'granted') {
         console.log('[Permission Check] Browser permission granted');
         return true;
       }
 
-      // Final fallback: Try getUserMedia
+      // Fallback: Try getUserMedia to test access
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         stream.getTracks().forEach(track => track.stop());
