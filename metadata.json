@@ -1,0 +1,9 @@
+{
+  "name": "Nova AI",
+  "description": "A futuristic AI voice assistant powered by Gemini Live API with Android native integration capabilities.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
