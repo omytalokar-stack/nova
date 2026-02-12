@@ -41,7 +41,7 @@ jobs:
       working-directory: android
       run: |
         ./gradlew build -x test \
-          -Dorg.gradle.jvmargs="-Xmx2048m" \
+          -Dorg.gradle.jvmargs="-Xmx2048m -XX:+UseG1GC" \
           -Dorg.gradle.configureondemand=true \
           -Dorg.gradle.dependency.verification=off \
           --no-build-cache \
