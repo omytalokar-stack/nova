@@ -7,7 +7,7 @@ import { MODEL_NAME, SYSTEM_INSTRUCTION, SAMPLE_RATE_IN, SAMPLE_RATE_OUT } from 
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { decodeBase64, decodeAudioData, createPcmBlob } from './services/audioUtils';
 import { androidBridge } from './services/androidBridge';
-import { AppState as CapacitorAppState } from '@capacitor/core';
+import { App } from '@capacitor/app';
 
 // Audio Worklet Code as a Data URL for low-latency capture
 const WORKLET_CODE = `
@@ -94,8 +94,8 @@ const App: React.FC = () => {
       }
     };
 
-    // Use Capacitor AppState listener
-    const listener = CapacitorAppState.addListener('appStateChange', handleAppStateChange);
+    // Use Capacitor App listener
+    const listener = App.addListener('appStateChange', handleAppStateChange);
 
     // Also add fallback window focus listener for web
     const handleWindowFocus = () => {
