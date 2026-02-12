@@ -7,7 +7,6 @@ import { MODEL_NAME, SYSTEM_INSTRUCTION, SAMPLE_RATE_IN, SAMPLE_RATE_OUT } from 
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { decodeBase64, decodeAudioData, createPcmBlob } from './services/audioUtils';
 import { androidBridge } from './services/androidBridge';
-import { App } from '@capacitor/app';
 
 // Audio Worklet Code as a Data URL for low-latency capture
 const WORKLET_CODE = `
@@ -81,26 +80,11 @@ const App: React.FC = () => {
     checkAndBypassPermissions();
   }, [checkMicrophoneGranted]);
 
-  // Listen for app focus (when returning from settings) and re-check permissions
+  // Listen for window focus (when returning to app) and re-check permissions
   useEffect(() => {
-    const handleAppStateChange = (state: any) => {
-      if (state.isActive && !isSetup) {
-        console.log('[App Focus] App returned to focus, re-checking permissions...');
-        checkMicrophoneGranted().then(granted => {
-          if (granted) {
-            setIsSetup(true);
-          }
-        });
-      }
-    };
-
-    // Use Capacitor App listener
-    const listener = App.addListener('appStateChange', handleAppStateChange);
-
-    // Also add fallback window focus listener for web
     const handleWindowFocus = () => {
       if (!isSetup) {
-        console.log('[Window Focus] Window regained focus, re-checking permissions...');
+        console.log('[Window Focus] App regained focus, re-checking permissions...');
         checkMicrophoneGranted().then(granted => {
           if (granted) {
             setIsSetup(true);
@@ -111,9 +95,8 @@ const App: React.FC = () => {
 
     window.addEventListener('focus', handleWindowFocus);
 
-    // Cleanup listeners
+    // Cleanup listener
     return () => {
-      listener?.remove();
       window.removeEventListener('focus', handleWindowFocus);
     };
   }, [isSetup, checkMicrophoneGranted]);
